@@ -1,4 +1,4 @@
-.PHONY: help build format lint type typecheck test tests
+.PHONY: help build format lint type typecheck test tests integration_test integration_tests
 
 .DEFAULT_GOAL := help
 
@@ -12,6 +12,16 @@ test: ## Run tests
 	uv run --group test pytest tests/ --disable-socket --allow-unix-socket
 
 tests: test
+
+integration_test integration_tests: TEST_FILE=tests/integration_tests/
+
+test: ## Run unit tests
+test tests:
+	uv run --group test pytest -vvv $(PYTEST_EXTRA) --disable-socket --allow-unix-socket $(TEST_FILE)
+
+integration_test: ## Run integration tests
+integration_test integration_tests:
+	uv run --group test pytest -vvv --timeout 30 $(TEST_FILE)
 
 build: ## Build sdist and wheel into dist/
 	uv build

@@ -24,7 +24,7 @@ requires-python = ">=3.11,<4.0"
 dependencies = [
     "deepagents>=0.4.10,<0.5",
     "langchain-openai>=0.3,<2",
-    "leap0>=0.1.0,<1",
+    "leap0>=0.3.0,<1",
 ]
 
 [tool.setuptools.packages.find]
@@ -87,6 +87,7 @@ markers = [
     "requires: mark tests as requiring a specific library",
     "compile: mark placeholder test used to compile integration tests without running them",
     "scheduled: mark tests to run in scheduled testing",
+    "enable_socket: allow network sockets (pytest-socket)",
 ]
 asyncio_mode = "auto"
 filterwarnings = []

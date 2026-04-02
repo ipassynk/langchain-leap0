@@ -4,20 +4,27 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from leap0 import Leap0APIError
+from leap0 import Leap0Error
+from leap0.models.sandbox import SandboxRef
 
 from langchain_leap0 import Leap0Sandbox
 from langchain_leap0.sandbox import Leap0Sandbox as Leap0SandboxCls
 
 
-def _make_backend(*, sandbox_id: str = "sb-123") -> tuple[Leap0Sandbox, MagicMock]:
+def _make_backend(*, sandbox: SandboxRef | None = None) -> tuple[Leap0Sandbox, MagicMock]:
     client = MagicMock()
-    backend = Leap0Sandbox(client=client, sandbox=sandbox_id)
+    if sandbox is None:
+        sandbox = SimpleNamespace(
+            id="sb-123",
+            process=client.process,
+            filesystem=client.filesystem,
+        )
+    backend = Leap0Sandbox(client=client, sandbox=sandbox)
     return backend, client
 
 
 def test_id_from_string_ref() -> None:
-    backend, _ = _make_backend(sandbox_id="my-sandbox-id")
+    backend, _ = _make_backend(sandbox="my-sandbox-id")
     assert backend.id == "my-sandbox-id"
 
 
@@ -48,7 +55,7 @@ def test_download_invalid_path_skips_api() -> None:
     assert responses[0].path == "relative/path.txt"
     assert responses[0].error == "invalid_path"
     assert responses[0].content is None
-    client.filesystem.read_file_bytes.assert_not_called()
+    client.filesystem.read_bytes.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -66,9 +73,9 @@ def test_download_maps_api_errors(
     expected: str,
 ) -> None:
     backend, client = _make_backend()
-    client.filesystem.read_file_bytes.side_effect = Leap0APIError(
-        status,
+    client.filesystem.read_bytes.side_effect = Leap0Error(
         "request failed",
+        status,
         body=body,
     )
     responses = backend.download_files(["/file.txt"])
@@ -78,7 +85,7 @@ def test_download_maps_api_errors(
 
 def test_download_success() -> None:
     backend, client = _make_backend()
-    client.filesystem.read_file_bytes.return_value = b"payload"
+    client.filesystem.read_bytes.return_value = b"payload"
     responses = backend.download_files(["/a"])
     assert responses[0].content == b"payload"
     assert responses[0].error is None
@@ -88,16 +95,16 @@ def test_upload_invalid_path_skips_api() -> None:
     backend, client = _make_backend()
     responses = backend.upload_files([("relative", b"x")])
     assert responses[0].error == "invalid_path"
-    client.filesystem.write_file_bytes.assert_not_called()
+    client.filesystem.write_bytes.assert_not_called()
 
 
 def test_upload_success() -> None:
     backend, client = _make_backend()
     responses = backend.upload_files([("/tmp/f", b"data")])
     assert responses[0].error is None
-    client.filesystem.write_file_bytes.assert_called_once()
+    client.filesystem.write_bytes.assert_called_once()
 
 
 def test_map_filesystem_api_error_directory_message() -> None:
-    exc = Leap0APIError(400, "read failed", body="path is a directory")
+    exc = Leap0Error("read failed", 400, body="path is a directory")
     assert Leap0SandboxCls._map_filesystem_api_error(exc) == "is_directory"

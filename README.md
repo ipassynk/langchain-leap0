@@ -19,7 +19,7 @@ export LEAP0_API_KEY="your-key"
 Minimal usage with the `[leap0](https://pypi.org/project/leap0/)` SDK and `Leap0Sandbox`:
 
 ```python
-from leap0.client import Leap0Client
+from leap0 import Leap0Client
 
 from langchain_leap0 import Leap0Sandbox
 
@@ -43,18 +43,14 @@ Runnable scripts for [Deep Agents sandboxes](https://docs.langchain.com/oss/pyth
 | Script                                                                 | Summary                                                                                                            |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `[examples/basic_sandbox.py](examples/basic_sandbox.py)`               | Minimal: create a sandbox, `Leap0Sandbox.execute()`, teardown.                                                     |
-| `[examples/sandbox_backend_ops.py](examples/sandbox_backend_ops.py)`   | `execute`, `write`/`read`/`edit`, `upload_files`/`download_files`, `invalid_path` on relative download.            |
 | `[examples/deep_agent_sandbox.py](examples/deep_agent_sandbox.py)`     | `create_deep_agent(..., backend=Leap0Sandbox(...))` — create and run a script; prints a short **execute** summary. |
-| `[examples/deep_agent_workspace.py](examples/deep_agent_workspace.py)` | Multi-step file + shell task (POSIX `notes.txt` + `wc -l`); execute summary and final model reply.                 |
 
 
 From the repo root:
 
 ```bash
 uv run python examples/basic_sandbox.py
-uv run python examples/sandbox_backend_ops.py
 uv run python examples/deep_agent_sandbox.py
-uv run python examples/deep_agent_workspace.py
 ```
 
 ## Developing from source
@@ -64,6 +60,24 @@ From this directory (alongside `leap0-python` in the Leap0 workspace). Uses `pyp
 ```bash
 cd langchain-leap0
 uv sync --all-groups
+```
+
+## Running tests
+
+From the package root:
+
+```bash
+# Unit tests
+make test
+
+# LangChain standard sandbox integration tests
+make integration_test
+```
+
+Integration tests require:
+
+```bash
+export LEAP0_API_KEY="your-key"
 ```
 
 `[project.urls]` in `pyproject.toml` points at [github.com/leap0-dev/langchain-leap0](https://github.com/leap0-dev/langchain-leap0). The Python SDK lives under the same org: `[leap0-dev/leap0-python](https://github.com/leap0-dev/leap0-python)`.

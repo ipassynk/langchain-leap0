@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from deepagents.backends.protocol import (
@@ -11,15 +12,12 @@ from deepagents.backends.protocol import (
     FileUploadResponse,
 )
 from deepagents.backends.sandbox import BaseSandbox
-from leap0 import Leap0APIError, Leap0Error
-from leap0.models import SandboxRef, sandbox_id_of
+from leap0 import Leap0Error
+from leap0.models.sandbox import sandbox_id_of
 
 if TYPE_CHECKING:
-    from leap0.client import Leap0Client
-
-_HTTP_NOT_FOUND = 404
-_HTTP_FORBIDDEN = 403
-
+    from leap0 import Leap0Client
+    from leap0.models.sandbox import SandboxRef
 
 class Leap0Sandbox(BaseSandbox):
     """Leap0 sandbox implementation conforming to SandboxBackendProtocol."""
@@ -62,8 +60,7 @@ class Leap0Sandbox(BaseSandbox):
             ExecuteResponse containing output, exit code, and truncation flag.
         """
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        result = self._client.process.execute(
-            self._sandbox,
+        result = self._sandbox.process.execute(
             command=command,
             timeout=effective_timeout,
         )
@@ -87,11 +84,8 @@ class Leap0Sandbox(BaseSandbox):
                 )
                 continue
             try:
-                content = self._client.filesystem.read_file_bytes(
-                    self._sandbox,
-                    path=path,
-                )
-            except Leap0APIError as exc:
+                content = self._sandbox.filesystem.read_bytes(path=path)
+            except Leap0Error as exc:
                 responses.append(
                     FileDownloadResponse(
                         path=path,
@@ -99,20 +93,12 @@ class Leap0Sandbox(BaseSandbox):
                         error=self._map_filesystem_api_error(exc),
                     ),
                 )
-            except Leap0Error:
+            except Exception as exc:  # noqa: BLE001
                 responses.append(
                     FileDownloadResponse(
                         path=path,
                         content=None,
-                        error="permission_denied",
-                    ),
-                )
-            except Exception:  # noqa: BLE001
-                responses.append(
-                    FileDownloadResponse(
-                        path=path,
-                        content=None,
-                        error="permission_denied",
+                        error=self._map_generic_filesystem_error(exc),
                     ),
                 )
             else:
@@ -133,38 +119,38 @@ class Leap0Sandbox(BaseSandbox):
                 responses.append(FileUploadResponse(path=path, error="invalid_path"))
                 continue
             try:
-                self._client.filesystem.write_file_bytes(
-                    self._sandbox,
-                    path=path,
-                    content=content,
-                )
-            except Leap0APIError as exc:
+                self._sandbox.filesystem.write_bytes(path=path, content=content)
+            except Leap0Error as exc:
                 responses.append(
                     FileUploadResponse(
                         path=path,
                         error=self._map_filesystem_api_error(exc),
                     ),
                 )
-            except Leap0Error:
+            except Exception as exc:  # noqa: BLE001
                 responses.append(
-                    FileUploadResponse(path=path, error="permission_denied"),
-                )
-            except Exception:  # noqa: BLE001
-                responses.append(
-                    FileUploadResponse(path=path, error="permission_denied"),
+                    FileUploadResponse(
+                        path=path,
+                        error=self._map_generic_filesystem_error(exc),
+                    ),
                 )
             else:
                 responses.append(FileUploadResponse(path=path, error=None))
         return responses
 
     @staticmethod
-    def _map_filesystem_api_error(exc: Leap0APIError) -> FileOperationError:
+    def _map_filesystem_api_error(exc: Leap0Error) -> FileOperationError:
         """Map Leap0 HTTP errors to ``FileOperationError`` literals."""
-        if exc.status_code == _HTTP_NOT_FOUND:
-            return "file_not_found"
-        if exc.status_code == _HTTP_FORBIDDEN:
-            return "permission_denied"
         combined = f"{exc.message} {exc.body or ''}".lower()
-        if "is a directory" in combined:
+        if exc.status_code == HTTPStatus.NOT_FOUND:
+            return "file_not_found"
+        if exc.status_code == HTTPStatus.FORBIDDEN:
+            return "permission_denied"
+        if "not a regular file" in combined or "is a directory" in combined:
             return "is_directory"
+        return "permission_denied"
+
+    @staticmethod
+    def _map_generic_filesystem_error(exc: Exception) -> FileOperationError:
+        """Map non-HTTP filesystem failures to a stable file operation error."""
         return "permission_denied"

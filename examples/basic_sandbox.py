@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 
-from leap0.client import Leap0Client
+from leap0 import Leap0Client
 
 from langchain_leap0 import Leap0Sandbox
 
