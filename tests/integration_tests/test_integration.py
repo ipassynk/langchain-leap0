@@ -28,5 +28,7 @@ class TestLeap0SandboxStandard(SandboxIntegrationTests):
         try:
             yield backend
         finally:
-            client.sandboxes.delete(sandbox)
-            client.close()
+            try:
+                client.sandboxes.delete(sandbox)
+            finally:
+                client.close()
