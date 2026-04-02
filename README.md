@@ -42,8 +42,8 @@ Runnable scripts for [Deep Agents sandboxes](https://docs.langchain.com/oss/pyth
 
 | Script                                                                 | Summary                                                                                                            |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `[examples/basic_sandbox.py](examples/basic_sandbox.py)`               | Minimal: create a sandbox, `Leap0Sandbox.execute()`, teardown.                                                     |
-| `[examples/deep_agent_sandbox.py](examples/deep_agent_sandbox.py)`     | `create_deep_agent(..., backend=Leap0Sandbox(...))` — create and run a script; prints a short **execute** summary. |
+| examples/basic_sandbox.py               | Minimal: create a sandbox, `Leap0Sandbox.execute()`, teardown.                                                     |
+| examples/deep_agent_sandbox.py    | `create_deep_agent(..., backend=Leap0Sandbox(...))` — create and run a script; prints a short **execute** summary. |
 
 
 From the repo root:
@@ -79,8 +79,6 @@ Integration tests require:
 ```bash
 export LEAP0_API_KEY="your-key"
 ```
-
-`[project.urls]` in `pyproject.toml` points at [github.com/leap0-dev/langchain-leap0](https://github.com/leap0-dev/langchain-leap0). The Python SDK lives under the same org: `[leap0-dev/leap0-python](https://github.com/leap0-dev/leap0-python)`.
 
 ## Documentation
 
