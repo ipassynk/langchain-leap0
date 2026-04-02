@@ -61,8 +61,10 @@ def main() -> int:
         )
         print(result)
     finally:
-        client.sandboxes.delete(sandbox)
-        client.close()
+        try:
+            client.sandboxes.delete(sandbox)
+        finally:
+            client.close()
     return 0
 
 
