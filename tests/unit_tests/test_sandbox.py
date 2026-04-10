@@ -1,36 +1,61 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
-from leap0 import Leap0Error
-from leap0.models.sandbox import SandboxRef
+from leap0 import Leap0Error, Sandbox as Leap0SdkSandbox
+from leap0.models.sandbox import Sandbox
 
 from langchain_leap0 import Leap0Sandbox
 from langchain_leap0.sandbox import Leap0Sandbox as Leap0SandboxCls
 
 
-def _make_backend(*, sandbox: SandboxRef | None = None) -> tuple[Leap0Sandbox, MagicMock]:
+@dataclass(slots=True)
+class _ConnectedSandboxStub(Sandbox):
+    """Minimal ``SandboxHandle`` with mocked services (matches connected SDK shape)."""
+
+    process: object | None = field(default=None)
+    filesystem: object | None = field(default=None)
+
+
+def _make_backend(
+    *, sandbox: _ConnectedSandboxStub | None = None
+) -> tuple[Leap0Sandbox, MagicMock]:
     client = MagicMock()
     if sandbox is None:
-        sandbox = SimpleNamespace(
+        sandbox = _ConnectedSandboxStub(
             id="sb-123",
             process=client.process,
             filesystem=client.filesystem,
         )
-    backend = Leap0Sandbox(client=client, sandbox=sandbox)
+    backend = Leap0Sandbox(
+        client=client,
+        sandbox=cast(Leap0SdkSandbox, sandbox),
+    )
     return backend, client
 
 
-def test_id_from_string_ref() -> None:
-    backend, _ = _make_backend(sandbox="my-sandbox-id")
+def test_id_from_connected_handle() -> None:
+    backend, _ = _make_backend(
+        sandbox=_ConnectedSandboxStub(
+            id="my-sandbox-id",
+            process=MagicMock(),
+            filesystem=MagicMock(),
+        ),
+    )
     assert backend.id == "my-sandbox-id"
 
 
 def test_execute_returns_response() -> None:
     backend, client = _make_backend()
-    client.process.execute.return_value = SimpleNamespace(result="hello\n", exit_code=0)
+    client.process.execute.return_value = SimpleNamespace(
+        stdout="hello\n",
+        stderr="",
+        exit_code=0,
+    )
     result = backend.execute("echo hello")
     assert result.output == "hello\n"
     assert result.exit_code == 0
@@ -43,7 +68,11 @@ def test_execute_returns_response() -> None:
 
 def test_execute_respects_explicit_timeout() -> None:
     backend, client = _make_backend()
-    client.process.execute.return_value = SimpleNamespace(result="", exit_code=0)
+    client.process.execute.return_value = SimpleNamespace(
+        stdout="",
+        stderr="",
+        exit_code=0,
+    )
     backend.execute("true", timeout=42)
     assert client.process.execute.call_args.kwargs["timeout"] == 42
 

@@ -19,12 +19,12 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11,<4.0"
 dependencies = [
     "deepagents>=0.4.10,<0.5",
     "langchain-openai>=0.3,<2",
-    "leap0>=0.3.0,<1",
+    "leap0>=0.5.1,<1",
 ]
 
 [tool.setuptools.packages.find]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import Any
 
 from deepagents.backends.protocol import (
     ExecuteResponse,
@@ -12,12 +12,8 @@ from deepagents.backends.protocol import (
     FileUploadResponse,
 )
 from deepagents.backends.sandbox import BaseSandbox
-from leap0 import Leap0Error
-from leap0.models.sandbox import sandbox_id_of
+from leap0 import Leap0Client, Leap0Error, Sandbox
 
-if TYPE_CHECKING:
-    from leap0 import Leap0Client
-    from leap0.models.sandbox import SandboxRef
 
 class Leap0Sandbox(BaseSandbox):
     """Leap0 sandbox implementation conforming to SandboxBackendProtocol."""
@@ -26,20 +22,23 @@ class Leap0Sandbox(BaseSandbox):
         self,
         *,
         client: Leap0Client,
-        sandbox: SandboxRef,
+        sandbox: Sandbox,
         timeout: int = 30 * 60,
     ) -> None:
         """Create a backend connected to an existing Leap0 sandbox.
 
         Args:
             client: Authenticated Leap0 API client.
-            sandbox: Sandbox id string or ``Sandbox`` / ``SandboxStatus`` model.
+            sandbox: Connected handle from the SDK (e.g. ``leap0.Sandbox`` from
+                ``client.sandboxes.create()`` or ``get()``).
             timeout: Default command timeout in seconds when ``execute()`` is
                 called without an explicit ``timeout``.
         """
         self._client = client
         self._sandbox = sandbox
-        self._sandbox_id = sandbox_id_of(sandbox)
+        self._sandbox_id = sandbox.id
+        self._process: Any = sandbox.process
+        self._filesystem: Any = sandbox.filesystem
         self._default_timeout = timeout
 
     @property
@@ -60,12 +59,15 @@ class Leap0Sandbox(BaseSandbox):
             ExecuteResponse containing output, exit code, and truncation flag.
         """
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        result = self._sandbox.process.execute(
+        result = self._process.execute(
             command=command,
             timeout=effective_timeout,
         )
+        output = result.stdout
+        if result.stderr:
+            output += result.stderr if not output else f"\n{result.stderr}"
         return ExecuteResponse(
-            output=result.result,
+            output=output,
             exit_code=result.exit_code,
             truncated=False,
         )
@@ -84,7 +86,7 @@ class Leap0Sandbox(BaseSandbox):
                 )
                 continue
             try:
-                content = self._sandbox.filesystem.read_bytes(path=path)
+                content = self._filesystem.read_bytes(path=path)
             except Leap0Error as exc:
                 responses.append(
                     FileDownloadResponse(
@@ -119,7 +121,7 @@ class Leap0Sandbox(BaseSandbox):
                 responses.append(FileUploadResponse(path=path, error="invalid_path"))
                 continue
             try:
-                self._sandbox.filesystem.write_bytes(path=path, content=content)
+                self._filesystem.write_bytes(path=path, content=content)
             except Leap0Error as exc:
                 responses.append(
                     FileUploadResponse(
@@ -151,6 +153,6 @@ class Leap0Sandbox(BaseSandbox):
         return "permission_denied"
 
     @staticmethod
-    def _map_generic_filesystem_error(exc: Exception) -> FileOperationError:
+    def _map_generic_filesystem_error(_exc: Exception) -> FileOperationError:
         """Map non-HTTP filesystem failures to a stable file operation error."""
         return "permission_denied"
